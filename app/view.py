@@ -1,5 +1,6 @@
 from app import app, db
 import telegram
+import requests
 from app.models import User, UserText, UserButton, Order 
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, 
 							CallbackQueryHandler,RegexHandler,ConversationHandler)
@@ -45,6 +46,11 @@ DELETE_TEXT                  = 'delete_text'
 MANAGER                      = 751026322
 SEND_WELCOME                 = 'send_welcome'
 SEND_MESSAGE                 = 'send_message'
+BUTTON_WELCOME               = 'button_welcome'
+BUTTON_OPTION                = 'button_option'
+BUTTON_CREATE                = 'button_create'
+BUTTON_DELETE_OPT            = 'button_delete'
+CLICKS                       = 0
 
 '''
 Decorator to restrict authorizations'''
@@ -445,10 +451,6 @@ class Send(object):
 Buttons Abstraction Module.
 ==========================================================
 '''
-BUTTON_WELCOME              = 'button_welcome'
-BUTTON_OPTION               = 'button_option'
-BUTTON_CREATE               = 'button_create'
-BUTTON_DELETE_OPT           = 'button_delete'
 
 class Button(object):
     def __init__(self):
@@ -631,15 +633,20 @@ dispatcher.add_handler(start_menu_callback_handler)
 """
 Start ---> Opens the start menus from where the user of the bot interacts with the bot."""
 
+def echo(bot, update):
+    if update.message.text == "/start":
+        bot.send_message(chat_id  = update.message.chat_id, text = "You clicked /start")
+# echo message handler
+echo_handler = MessageHandler(Filters.text, echo)
+dispatcher.add_handler(echo_handler)
+
 def start(bot, update):
-	msg = "Welcome to Order System @ordersystem, for deliver of quality services."
-	button= [[InlineKeyboardButton('Authentication of New customer', callback_data = 'new_customer')],
-	[InlineKeyboardButton("Joke", callback_data = 'joke'), 
-	InlineKeyboardButton("Reviews", callback_data="reviews"), 
-	InlineKeyboardButton("Order",  callback_data="order")], 
-	[InlineKeyboardButton("Variety Channel", callback_data = 'variety')]]
-	reply_markup = InlineKeyboardMarkup(button)
-	bot.send_message(chat_id  = update.message.chat_id, text = msg,reply_markup = reply_markup)
+    global CLICKS
+    CLICKS += 1
+    msg = "Welcome to Order System @ordersystem, for deliver of quality services."
+    button= [[InlineKeyboardButton('Authentication of New customer', callback_data ='new_customer')],[InlineKeyboardButton("Joke", callback_data = 'joke'), InlineKeyboardButton("Reviews", callback_data="reviews"), InlineKeyboardButton("Order",  callback_data="order")], [InlineKeyboardButton("Variety Channel", callback_data = 'variety')]]
+    reply_markup = InlineKeyboardMarkup(button)
+    bot.send_message(chat_id  = update.message.chat_id, text = msg,reply_markup = reply_markup)
 start_handler = CommandHandler("start", start)
 dispatcher.add_handler(start_handler)
 
@@ -665,11 +672,12 @@ def stats(bot, update):
     msg = "Order System Statitics"
     button= [[InlineKeyboardButton("Customers : {}".format(str(cust)), callback_data = 'cust')], 
              [InlineKeyboardButton("Orders: {}".format(str(orders)), callback_data="orders")],
-             [InlineKeyboardButton("clicks: {}".format(str(23)), callback_data="click")]]
+             [InlineKeyboardButton("clicks: {}".format(str(CLICKS)), callback_data="click")]]
     reply_markup = InlineKeyboardMarkup(button)
     bot.send_message(chat_id  = update.message.chat_id, text = msg,reply_markup = reply_markup)
 stats_handler = CommandHandler("stats", stats)
 dispatcher.add_handler(stats_handler)
 
+    
 
 

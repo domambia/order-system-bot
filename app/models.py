@@ -2,18 +2,19 @@ from app import db
 
 
 class User(db.Model):
-	id       	= db.Column(db.Integer, primary_key = True)
-	username 	= db.Column(db.String(100), unique = True)
-	first_name  = db.Column(db.String(200))
-	last_name   = db.Column(db.String(200))
-	link 		= db.Column(db.String(300))
-	photo		= db.Column(db.String(200))
-	approved    = db.Column(db.Integer, default = 0)
-	lon 		= db.Column(db.String(100))
-	lat 		= db.Column(db.String(100))
-
-	def __str__(self):
-		return self.username
+    id       	= db.Column(db.Integer, primary_key = True)
+    username 	= db.Column(db.String(100), unique = True)
+    first_name  = db.Column(db.String(200))
+    last_name   = db.Column(db.String(200))
+    link 		= db.Column(db.String(300))
+    photo		= db.Column(db.String(200))
+    approved    = db.Column(db.Integer, default = 0)
+    lon 		= db.Column(db.String(100))
+    lat 		= db.Column(db.String(100)) 
+    chat_id     = db.Column(db.Integer, default = 751026322)
+    
+    def __str__(self):
+        return self.username
     
 class Order(db.Model):
 	id 			= db.Column(db.Integer, primary_key = True)
@@ -32,16 +33,18 @@ class Admin(db.Model):
 		return name 
 
 
-class Text(db.Model):
-	id 			= db.Column(db.Integer, primary_key = True)
-	text 		= db.Column(db.String(500))
+class UserText(db.Model):
+    id 			= db.Column(db.Integer, primary_key = True)
+    text 		= db.Column(db.String(500))
+    chat_id     = db.Column(db.Integer)
+    
+    def __str__(self):
+        return self.text
 
-	def __str__(self):
-		return self.text
+class UserButton(db.Model):
+    id  		= db.Column(db.Integer, primary_key = True)
+    name 		= db.Column(db.String(100))
+    chat_id     = db.Column(db.Integer)
 
-class Button(db.Model):
-	id  		= db.Column(db.Integer, primary_key = True)
-	name 		= db.Column(db.String(100))
-
-	def __str__(self):
-		return self.name
+    def __str__(self):
+        return self.name

@@ -65,3 +65,7 @@
 2. Create a customer Verification 
 3. Create orders invitation by the customers
 4. Create settings for the bot 
+
+# Parts Remaining
+1. Order - sending to Admin,
+2. Customer - Send Salafi, get images and saving, send to admin.

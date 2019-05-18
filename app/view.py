@@ -1,4 +1,5 @@
 from app import app, db
+import telegram
 from app.models import User, Text, Button, Admin, Order 
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, 
 							CallbackQueryHandler,RegexHandler,ConversationHandler)
@@ -37,7 +38,11 @@ CUSTOMER_LINK                = 'customer_link'
 CUSTOMER_LOCATION            = 'customer_location'
 CUSTOMER_LOC                 = 'customer_loc'
 CUSTOMER_SEND                = 'customer_send'
-
+CREATE_TEXT                  = "create_text"
+DELETE_TEXT                  = "delete_text"
+CREATE                       = 'create'
+DELETE_TEXT                  = 'delete_text'
+MANAGER                      = 751026322
 
     
 class Invitation(object):
@@ -47,79 +52,111 @@ class Invitation(object):
         
     def entry_point(self, bot, update):
         username  = update.message.chat.username
-        self.store['username'] = username 
+        print(update)
+        self.store[username] = {} 
         msg  = "Thank you for choosing order invitation. Please enter your phone number, with your country's code area number"
         bot.send_message(chat_id  = update.message.chat_id, text  = msg)
         
         return INVITE_PHONE
     
     def invite_phone(self, bot, update):
-        phone  = update.message.text
-        self.store['phone'] = phone
+        phone       = update.message.text
+        username    = update.message.chat.username
+        self.store[username]['phone'] = phone
         msg  = "Thank you. Please enter your desired collections. If your have a many, seperate them with commans."
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return INVITE_COLLECTION
     
     def invite_collection(self, bot, update):
         collection  = update.message.text
+        username    = update.message.chat.username
         msg = 'Thank you. Provide your desired quantity. It must be a number, for instance, 3.'
-        self.store['collection'] = collection
+        self.store[username]['collection'] = collection
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return QUANTITY
         
     
     def invite_quantity(self, bot, update):
-        quantity = update.message.text
-        print("Form Quantity",)        
+        quantity    = update.message.text 
+        username    = update.message.chat.username
         msg = "Thank you. Give your location. Your location must be a name. eg. Nairobi, Kenya."
-        self.store['quantity'] = quantity
+        self.store[username]['quantity'] = quantity
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return INVITE_LOCATION
     
     def invite_location(self, bot, update):
-        location = update.message.text
-        self.store['location'] = location
+        location    = update.message.text
+        username    = update.message.chat.username
+        self.store[username]['location'] = location
+        print(self.store)
         msg   = "Please choose your arrival time bettern (10000hours and 0000hours). Eg 1120hours"
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return TIME 
     
     def invite_time(self, bot, update):
-        time  = update.message.text  
-        self.store['time'] = time
-        phone       = self.store['phone']
-        collection  = self.store['collection']
-        location    = self.store['location']
-        quantity    = self.store['quantity']
-        time        = self.store['time']
-        # show this to user
-        msg = "Can we continue? (Reply with yes or no)"
-        bot.send_message(chat_id = update.message.chat_id, text  = msg)
+        username    = update.message.chat.username
+        time        = update.message.text  
+        self.store[username]['time'] = time
+        phone       = self.store[username]['phone']
+        collection  = self.store[username]['collection']
+        location    = self.store[username]['location']
+        quantity    = self.store[username]['quantity']
+        msg = (
+            "```"
+            
+            "Are all the details correct? Reply with *yes* or *no**" 
+            
+            "```"
+        )
+        button= [
+                [InlineKeyboardButton('Phone: {}'.format(str(phone)), callback_data = 'phone')],
+                [InlineKeyboardButton("Collection: {}".format(str(collection)), callback_data = 'collection')],
+                 [InlineKeyboardButton("Your Location: {}".format(str(location)),  callback_data="locale")], 
+            [InlineKeyboardButton("Quantity: {}".format(str(quantity)), callback_data = 'value')], 
+            [InlineKeyboardButton("Expected Time of Arrival: {}".format(str(time)), callback_data = 'time')]]
+        reply_markup = InlineKeyboardMarkup(button)
+        bot.send_message(chat_id  = update.message.chat_id, text = msg,
+                         reply_markup = reply_markup, 
+                         parse_mode  = telegram.ParseMode.MARKDOWN)
         return INVITE_CONFIRM
     
     def invite_confirm(self, bot, update):
-        phone       = self.store['phone']
-        username    = self.store['username']
-        collection  = self.store['collection']
-        location    = self.store['location']
-        quantity    = self.store['quantity']
-        time        = self.store['time']
-        # store
-        order = Order(phone = phone, 
-                username        = username,
-                collections     = collection, 
-                location        = location, 
-                quantity        = quantity,
-                time            = time)
-        db.session.add(order)
-        db.session.commit()
-        msg  = "Thank you welcome back. Your order has been send for approval"
+        username    = update.message.chat.username
+        phone       = self.store[username]['phone']
+        collection  = self.store[username]['collection']
+        location    = self.store[username]['location']
+        quantity    = self.store[username]['quantity']
+        time        = self.store[username]['time']
+        if update.message.text.lower() == "yes":
+            order = Order(phone = phone, 
+                    username        = username,
+                    collections     = collection, 
+                    location        = location, 
+                    quantity        = quantity,
+                    time            = time)
+            db.session.add(order)
+            db.session.commit()
+            # send to admin
+            msg  = "Thank you welcome back. Your order has been send for approval"
+            button= [
+                [InlineKeyboardButton('Phone: {}'.format(str(phone)), callback_data = 'phone')],
+                [InlineKeyboardButton("Collection: {}".format(str(collection)), callback_data = 'collection')],
+                 [InlineKeyboardButton("Your Location: {}".format(str(location)),  callback_data="locale")], 
+            [InlineKeyboardButton("Quantity: {}".format(str(quantity)), callback_data = 'value')], 
+            [InlineKeyboardButton("Expected Time of Arrival: {}".format(str(time)), callback_data = 'time')], [InlineKeyboardButton("Ready for approval", callback_data = 'approval')]]
+            reply_markup = InlineKeyboardMarkup(button)
+            bot.send_message(MANAGER, text = msg,
+                             reply_markup = reply_markup, 
+                             parse_mode  = telegram.ParseMode.MARKDOWN)
+            self.store.pop(username)
+            return END_CONVERSATION
+        
+        msg  = "Thank you. You can start a making an order"
+        self.store.pop(username)
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return END_CONVERSATION
     
-    
     def invite_send(self, bot, udpate):
-        user        = update.message.username
-        
         phone       = self.store['phone']
         collection  = self.store['collection']
         location    = self.store['location']
@@ -148,41 +185,36 @@ class Customer():
     def new_customer(self, bot, update):
         username            = update.message.chat.username
         first_name          = update.message.chat.first_name
-        # user                = User.query.filter(username  = username).first()
-        # if user:
-        #     msg  = "You are not a new customer. Please start your chat and go to other parts of the bot. from /start"
-        #     bot.send_message(chat_id = update.message.chat_id, text  = msg)
-        #     return END_CONVERSATION
-        self.store['username'] = username
-        self.store['first_name'] = first_name
+        self.store[username] = {}
+        self.store[username]['first_name'] = first_name
         msg  = "Thank you. Please provide your second name."
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return  CUSTOMER_NAME
 
     def name(self, bot, update):
-        self.store['last_name']  = update.message.text
+        self.store[update.message.chat.username]['last_name']  = update.message.text
         msg  = "Thank you. Please provide your id number."
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return CUSTOMER_ID_NUMBER
 
     def id_number(self, bot, update):
         id      = update.message.text 
-        self.store['id'] = id 
+        self.store[update.message.chat.username]['id'] = id 
         msg  = "Thank you.Please you. Please your photo."
         bot.send_message(chat_id = update.message.chat_id, text  = msg) 
         return  CUSTOMER_PHOTO
 
     def photo(self, bot, update):
-        # print(update)
-        photo  = "some photo is here"
-        self.store['photo'] = photo 
+        username = update.message.chat.username
+        self.store[username]['photo'] = update.message.photo[-1].file_id
+        print(self.store)
         msg  = "Thank you for sharing the photo. Please share your facebook profile link"
         bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return CUSTOMER_LOCATION
 
     def location(self, bot, update): 
-        print(update)
-        self.store['link']   = update.message.text
+        username  = update.message.chat.username
+        self.store[username]['link']   = update.message.text
         button = [[KeyboardButton("Share location", request_location = True)]]
         reply_markup = ReplyKeyboardMarkup(button)
         bot.send_message(chat_id = update.message.chat_id,
@@ -192,29 +224,84 @@ class Customer():
         return CUSTOMER_LOC
 
     def save_location(self, bot, update):
-        lat = update.message.location.latitude
-        lon = update.message.locaton.longitude
-        self.store['lat'] = lat 
-        self.store['lon'] = lon 
-        msg  = "Thank you for sharing your location.Please confirm your details. "
-        bot.send_message(chat_id = update.message.chat_id, text  = msg, reply_markup = ReplyKeyboardRemove())
+        print("save Location")
+        username    = update.message.chat.username
+        self.store[username]['lat'] = update.message.location['longitude']
+        self.store[username]['lon'] = update.message.location['latitude']
+        msg  = "Thank you for sharing your location.Please confirm your details and respond with *yes* or *no*"
+        bot.send_message(chat_id = update.message.chat_id, text  = msg, 
+                         reply_markup = ReplyKeyboardRemove(), 
+                         parse_mode  = telegram.ParseMode.MARKDOWN)
         return CUSTOMER_SEND
 
     def save_send(self, bot, update):
-        last_name  = self.store['last_name']
-        id         = self.store['id']
-        photo      = self.store['photo']
-        link       = self.store['link']
-        lon        = self.store['lon']
-        lat        = self.store['lat']
-        msg  = "Thank you for registering with us. Wait for your details to be approved."
-        bot.send_message(chat_id = update.message.chat_id, msg  = msg)
+        username    = update.message.chat.username
+        last_name   = self.store[username]['last_name']
+        first_name  = self.store[username]['first_name']
+        id          = self.store[username]['id']
+        photo       = self.store[username]['photo']
+        link        = self.store[username]['link']
+        lon         = self.store[username]['lon']
+        lat         = self.store[username]['lat']
+        if update.message.text.lower() == "yes":
+            msg  = "Thank you for registering with us. Wait for a details to be approved"
+            print("Saved Data")
+            print(self.store)
+            user = User(username = username, first_name = first_name, last_name = last_name,
+                        lat=lat, lon = lon, link = link, photo =photo)
+            db.session.add(user)
+            db.session.commit()
+            bot.send_message(chat_id = update.message.chat_id, text  = msg)
+            return END_CONVERSATION
+        msg  = "Thank you. You have declined your registration. Welcome back again by entering /start."
+        bot.send_message(chat_id = update.message.chat_id, text  = msg)
         return END_CONVERSATION
 
     def cancel(self, bot, update):
         bot.send_message(chat_id = udpate.message.chat_id,  msg  = "Thank you. welcome again.")
         return END_CONVERSATION
 
+
+
+class Text(object):
+    def __init__(self):
+        self.store = dict()
+        
+    def entry(self, bot, update):
+        username  = update.message.chat.username
+        self.store[username] = {}
+        msg  = "Welcome to *Text*. Do you want to create a text?(*yes* or *no*)"
+        bot.send_message(chat_id = update.message.chat_id, text = msg, parse_mode  = telegram.PareMode.MARKDOWN)
+        
+        return CREATE_TEXT
+    
+    def create_init(self, bot, update):
+        username  = update.message.chat.username
+        if update.message.text.lower() == "yes":
+            msg  = 'Thank your. Please provide your text'
+            bot.sent_message(chat_id = update.message.chat_id, text = chat_id)
+            return CREATE
+        bot.send_message(chat_id  = update.message.chat_id, 
+                         text = "Thank you.Let us go to deleting part. Enter text to delete, *Enter some part of the text that you might remember.*", 
+                         parse_mode = telegram.ParseMode.MARKDOWN)
+        
+        return DELETE_TEXT
+    
+    def delete(self, bot, update):
+        user_text  = update.message.text
+        text       = Text.query.filter(Text.text.like("%user_text%")).first()
+        if user_text:
+            db.session.delete(user_text)
+            db.session.commit()
+            bot.send_message(chat_id = update.message.chat_id, text  =" Successfully delete text that is, o has *{}* as a part of the whole of it.".format(update.message.text), 
+                             parse_mode  =telegram.ParseMode.MARKDOWN)
+            return END_CONVERSATION
+    def cancel(self, bot, update):
+        bot.send_message(chat_id = update.message.chat_id, text = "Thank you. Welcome again")
+        return END_CONVERSATION
+    
+        
+    
 customer  = Customer()
 customer_handler  = ConversationHandler(
     entry_points = [CommandHandler('register', customer.new_customer)],
@@ -239,9 +326,9 @@ invitation_handler  = ConversationHandler(
         INVITE_COLLECTION: [MessageHandler(Filters.text, invite.invite_collection)],
         QUANTITY: [MessageHandler(Filters.text, invite.invite_quantity)],
         INVITE_LOCATION: [MessageHandler(Filters.text, invite.invite_location)],
-        TIME: [MessageHandler(Filters.text, callback = invite.invite_time)],
-        INVITE_CONFIRM: [MessageHandler(Filters.text, callback = invite.invite_confirm)],
-        INVITE_SEND: [MessageHandler(Filters.text, callback = invite.invite_send)],
+        TIME: [MessageHandler(Filters.text, invite.invite_time)],
+        INVITE_CONFIRM: [MessageHandler(Filters.text, invite.invite_confirm)],
+        INVITE_SEND: [MessageHandler(Filters.text, invite.invite_send)],
     },
     fallbacks=[CommandHandler('cancel', invite.cancel)]
 )

@@ -14,17 +14,20 @@ class User(db.Model):
 
 	def __str__(self):
 		return self.username
+    
 class Order(db.Model):
 	id 			= db.Column(db.Integer, primary_key = True)
 	username 	= db.Column(db.String(100))
 	phone		= db.Column(db.String(20))
 	collections	= db.Column(db.String(200))
-	quantity 	= db.Column(db.Integer)
+	quantity 	= db.Column(db.String(12))
 	location	= db.Column(db.String(100))
 	time 		= db.Column(db.String(10))
+    
 class Admin(db.Model):
 	id  		= db.Column(db.Integer,  primary_key = True)
 	name 		= db.Column(db.String(100))
+    
 	def __str__(self):
 		return name 
 
